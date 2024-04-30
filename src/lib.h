@@ -2,6 +2,7 @@
 #define _LIB_H
 #include <fcntl.h>
 #include <inttypes.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -19,4 +20,5 @@
 #define exec(cmd) system (cmd)
 #define strlcpy(dst, src, size) strncpy (dst, src, size)
 #define wait(pid) waitpid (pid, NULL, 0)
+//
 #endif // _LIB_H

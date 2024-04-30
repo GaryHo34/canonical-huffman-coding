@@ -36,7 +36,7 @@ struct Codeword
 void code_inc_one (int *code);
 void code_clean (int *code);
 void code_cp (int *from, int *to);
-void code_shift_right (int *code, int digit);
+void code_shift_left (int *code, int digit);
 void debug_dump_codeword (struct Codeword *cw);
 bool codeword_match (struct Codeword *char_mapping, int *code, int length);
 #endif // CODEWORD_H

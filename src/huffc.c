@@ -10,10 +10,6 @@
 #include "lib.h"
 #endif
 
-// pintos -v -k --smp 4 --kvm  --filesys-size=8 -p ../../examples/zip -a zip -p
-// ../../examples/extreme.txt -a sample.txt --swap-size=8 -- -q -f run 'zip -z
-// sample.txt' > ret.txt
-
 #define MAX(_a, _b) ((_a) > (_b) ? (_a) : (_b))
 #define MIN(_a, _b) ((_a) < (_b) ? (_a) : (_b))
 
@@ -21,43 +17,36 @@
 #define CODE_LOOKUP_TABLE_WIDTH 8
 #define CHAR_SET_SIZE 256
 
-static void zip (char *filename);
-static void unzip (char *filename);
+static void do_compress (char *filename);
+static void do_decompress (char *filename);
 static void array_init (int *array, int size);
 static void charmap_init (struct Codeword *char_mapping, int size);
 static bool tree_heap_less (void *a, void *b);
 static void build_char_map (struct Codeword *char_mapping,
                             struct TreeNode *root, uint8_t length);
 static bool codeword_heap_less (void *a, void *b);
+static void create_output_path (char *new_filename, char *filename,
+                                char *extension);
 
 int
 main (int argc, char *argv[])
 {
-  if (argc < 3 || argc > 3)
+  if (argc == 3 && !strcmp ("-c", argv[1]))
     {
-      printf ("\n"
-              "Usage: zip [OPTION] <target_file>\n"
-              "  -z:               zip the file\n"
-              "  -u:             unzip the file\n"
-              "the default output has .zip     \n");
-      exit (EXIT_FAILURE);
+      do_compress (argv[2]);
     }
-
-  if (!strcmp ("-z", argv[1]))
+  else if (argc == 3 && !strcmp ("-d", argv[1]))
     {
-      zip (argv[2]);
-    }
-  else if (!strcmp ("-u", argv[1]))
-    {
-      unzip (argv[2]);
+      do_decompress (argv[2]);
     }
   else
     {
-      printf ("invalid option\n"
-              "Usage: zip [OPTION] <target_file>\n"
-              "  -z:               zip the file\n"
-              "  -u:             unzip the file\n"
-              "the default output has .zip     \n");
+      printf ("\n"
+              "Usage: huffc [OPTION] <file_name>\n"
+              "  -c:             compress the file\n"
+              "  -d:           decompress the file\n"
+              "the default output is <file_name>.cmp for compression"
+              "and <file_name>.ucmp for decompression\n");
       exit (EXIT_FAILURE);
     }
 
@@ -65,7 +54,7 @@ main (int argc, char *argv[])
 }
 
 void
-zip (char *filename)
+do_compress (char *filename)
 {
   int input_fd;
   if ((input_fd = open (filename)) < 0)
@@ -73,7 +62,7 @@ zip (char *filename)
       printf ("%s: open failed\n", filename);
       exit (EXIT_FAILURE);
     }
-  
+
   int input_filesize = filesize (input_fd);
   seek (input_fd, 0);
 
@@ -161,7 +150,7 @@ zip (char *filename)
     {
       struct Codeword *cw = heap_pop (&codeword_heap);
       cw_char[ptr++] = cw->ch;
-      code_shift_right (code, (cw->length - cur_length));
+      code_shift_left (code, (cw->length - cur_length));
       cur_length = cw->length;
       cw_count_by_length[cur_length]++;
       code_cp (code, cw->code);
@@ -236,13 +225,12 @@ zip (char *filename)
     {
       write_buffer[buffer_size++] = built_char;
     }
-  char filename_cp[24];
+
+  char filename_cp[strlen (filename) + 1];
   strlcpy (filename_cp, filename, strlen (filename));
 
-  char *save_ptr;
-  char *token = strtok_r (filename_cp, ".", &save_ptr);
-  char new_filename[24];
-  snprintf (new_filename, strlen (token) + 5, "%s.cmp", token);
+  char new_filename[256] = "";
+  create_output_path (new_filename, filename_cp, ".cmp");
 
   // create the output file
   if (!create (new_filename, buffer_size))
@@ -264,15 +252,15 @@ zip (char *filename)
   printf ("successfully compressed:        %s\n"
           "create cmp file:                %s\n"
           "original file size:             %d\n"
-          "cmp file size:                  %d\n",
-          filename, new_filename, filesize (input_fd), filesize (output_fd));
+          "compressed file size:           %d\n",
+          filename, new_filename, input_filesize, filesize (output_fd));
 
   close (input_fd);
   close (output_fd);
 }
 
 void
-unzip (char *filename)
+do_decompress (char *filename)
 {
   int input_fd;
   if ((input_fd = open (filename)) < 0)
@@ -316,7 +304,7 @@ unzip (char *filename)
       cw->ch = ch;
       cw->length = cur_length;
       code_clean (cw->code);
-      code_shift_right (code, (cw->length - pre_length));
+      code_shift_left (code, (cw->length - pre_length));
       pre_length = cw->length;
       code_cp (code, cw->code);
       cw_count_by_length[cur_length]--;
@@ -362,7 +350,7 @@ unzip (char *filename)
           char encode_char = buffer[i];
           for (int j = 0; j < 8; j++)
             {
-              code_shift_right (code, 1);
+              code_shift_left (code, 1);
               if ((encode_char >> (7 - j)) & 1)
                 code_inc_one (code);
               cur_length++;
@@ -404,14 +392,13 @@ unzip (char *filename)
             }
         }
     }
-  char filename_cp[24];
+
+  char filename_cp[strlen (filename) + 1];
   strlcpy (filename_cp, filename, strlen (filename));
 
-  char new_filename[24];
-  char *save_ptr;
-  char *token = strtok_r (filename_cp, ".", &save_ptr);
+  char new_filename[256] = "";
+  create_output_path (new_filename, filename_cp, ".ucmp");
 
-  snprintf (new_filename, strlen (token) + 6, "%s.ucmp", token);
   if (!create (new_filename, buffer_size))
     {
       printf ("%s: create failed\n", new_filename);
@@ -427,15 +414,11 @@ unzip (char *filename)
   seek (output_fd, 0);
   write (output_fd, write_buffer, buffer_size);
 
-#ifdef _NON_PINTOS
-  sync ();
-#endif
-
   printf ("successfully decompressed:      %s\n"
           "create ucmp file:               %s\n"
           "compressed file size:           %d\n"
           "decompressed file size:         %d\n",
-          filename, new_filename, filesize (input_fd), filesize (output_fd));
+          filename, new_filename, input_filesize, filesize (output_fd));
 
   close (input_fd);
   close (output_fd);
@@ -494,4 +477,39 @@ codeword_heap_less (void *a, void *b)
     return false;
   else
     return node1->ch > node2->ch;
+}
+
+static void
+create_output_path (char *new_filename, char *filename, char *extension)
+{
+  char *save_ptr;
+  char *dir[10];
+  char *token = strtok_r (filename, "/", &save_ptr);
+  int dir_count = 0;
+  while (token != NULL)
+    {
+      dir[dir_count++] = token;
+      token = strtok_r (NULL, "/", &save_ptr);
+    }
+
+  token = strtok_r (dir[dir_count - 1], ".", &save_ptr);
+#ifdef _NON_PINTOS
+  for (int i = 0; i < dir_count - 1; i++)
+    {
+      strncat (new_filename, dir[i], +strlen (dir[i]) + 1);
+      strncat (new_filename, "/", +2);
+    }
+  strncat (new_filename, token, +strlen (token) + 1);
+  strncat (new_filename, extension, +strlen (extension) + 1);
+#else
+  for (int i = 0; i < dir_count - 1; i++)
+    {
+      strlcat (new_filename, dir[i],
+               strlen (new_filename) + strlen (dir[i]) + 1);
+      strlcat (new_filename, "/", strlen (new_filename) + 2);
+    }
+  strlcat (new_filename, token, strlen (new_filename) + strlen (token) + 1);
+  strlcat (new_filename, extension,
+           strlen (new_filename) + strlen (extension) + 1);
+#endif
 }

@@ -16,8 +16,8 @@ testhuffc: $(SRC_DIR)/testhuffc.o
 huffc: $(SRC_DIR)/huffc.o $(SRC_DIR)/heap.o $(SRC_DIR)/codeword.o $(SRC_DIR)/treepool.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(SRC_DIR)/%.o: $(SRC_DIR)/%.c
+$(SRC_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/lib.h
 	$(CC) $(CFLAGS) $(DEFINES) $(WARNINGS) -c $< -o $@
 
 clean: 
-	rm -f $(OBJ_FILES) *.cmp *.ucmp testhuffc huffc
+	rm -f $(OBJ_FILES) *.cmp *.ucmp testhuffc huffc ./tests/*.cmp ./tests/*.ucmp

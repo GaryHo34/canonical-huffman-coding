@@ -34,7 +34,7 @@ code_cp (int *from, int *to)
 }
 
 void
-code_shift_right (int *code, int digit)
+code_shift_left (int *code, int digit)
 {
   if (digit == 0)
     return;
