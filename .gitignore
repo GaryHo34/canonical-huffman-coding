@@ -6,6 +6,9 @@
 *.cmp
 *.ucmp
 
+huffc
+testhuffc
+
 .vscode/
 
 .DS_Store

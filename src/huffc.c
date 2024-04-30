@@ -373,7 +373,6 @@ unzip (char *filename)
                       int cw_length = code_lookup_table[code[0]].length;
                       decode_char = code_lookup_table[code[0]].ch;
                       is_end = (decode_char == (char)0xff);
-                      printf ("%c", decode_char);
                       if (!is_end)
                         {
                           write_buffer[buffer_size++] = decode_char;
