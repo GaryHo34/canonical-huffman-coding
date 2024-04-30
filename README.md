@@ -1,5 +1,5 @@
-# canonical-huffman-compression
-Am implementation of Canonical Huffman coding in C, tailored for compatibility with the Pintos project.
+# Canonical Huffman Compression
+An implementation of Canonical Huffman Encoder/Decoder in C, compatible for running in Pintos kernel.
 
 ## Usage
 
