@@ -354,17 +354,19 @@ do_decompress (char *filename)
               if ((encode_char >> (7 - j)) & 1)
                 code_inc_one (code);
               cur_length++;
-              if (cur_length == CODE_LOOKUP_TABLE_WIDTH)
+              if (cur_length <= CODE_LOOKUP_TABLE_WIDTH)
                 {
-                  if (code_lookup_table[code[0]].length != 0)
+                  int index = code[0]
+                              << (CODE_LOOKUP_TABLE_WIDTH - cur_length);
+                  if (code_lookup_table[index].length == cur_length)
                     {
-                      int cw_length = code_lookup_table[code[0]].length;
-                      decode_char = code_lookup_table[code[0]].ch;
+                      int cw_length = code_lookup_table[index].length;
+                      decode_char = code_lookup_table[index].ch;
                       is_end = (decode_char == (char)0xff);
                       if (!is_end)
                         {
                           write_buffer[buffer_size++] = decode_char;
-                          code[0] = code[0] / (1 << cw_length);
+                          code_clean (code);
                           cur_length -= cw_length;
                         }
                     }
